@@ -1,4 +1,4 @@
-import argparse
+#!/usr/bin/env python3
 import os
 
 import google.oauth2.credentials
@@ -39,7 +39,7 @@ class YouTube:
                 return item['id'];
         return None;
 
-    def insertPlaylist(self, playlistTitle, description):
+    def insertPlaylist(self, playlistTitle, description = ''):
 
         requestBody = dict(
             snippet = dict(
@@ -63,6 +63,23 @@ class YouTube:
             print(e.content);
             exit(1);
 
+    def searchForVideo(self, title):
+        request = YouTube.client.search().list(
+            part = 'id',
+            q = title,
+            maxResults = 25,
+            safeSearch = 'none',
+            type = 'video'
+        );
+
+        try:
+            response = request.execute();
+            return list(map(lambda a: a['id']['videoId'], response['items']));
+        except Exception as e:
+            print(e.content.decode('UTF-8'));
+            exit(1);
+
+
     def getVideoIDsInPlaylist(self, playlistId):
         request = YouTube.client.playlistItems().list(
             part = 'snippet',
@@ -81,6 +98,7 @@ class YouTube:
             snippet = dict(
                 playlistId = playlistId,
                 resourceId = dict(
+                    kind = 'youtube#video',
                     videoId = videoId
                 )
             )

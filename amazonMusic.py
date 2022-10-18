@@ -31,24 +31,24 @@ class AmazonMusic:
     HTML_MFA_OTP_ID='auth-mfa-otpcode'
     HTML_AMAZON_SIGNIN_BTN='signInSubmit'
     songsPath='my/songs'
-    AMAZON_EMAIL='vasgorai09@gmail.com';
     HTML_MUSIC_DIV='music-image-row'
     HTML_ATTRIBUTE_FOR_SONG_NAME='primary-text'
+    HTML_ATTRIBUTE_FOR_ARTIST_NAME='secondary-text-1'
     PERCENTAGE_TO_BE_LOADED=0.9
 
     def __init__(self):
         try:
             options = Options();
-            #options.add_argument('--headless');
+            options.add_argument('--headless');
             self.driver = webdriver.Firefox(options=options);
             self.loadUrl(self.amazonMusicUrl + self.signInPath);
         except:
             sys.stderr.write("Firefox not initialized!");
             exit(1);
 
-    def login(self, password):
+    def login(self, userName, password):
         try:
-            self.findElementByIdAndSendKeys(self.HTML_EMAIL_ID, self.AMAZON_EMAIL);
+            self.findElementByIdAndSendKeys(self.HTML_EMAIL_ID, userName);
             self.findElementByIdAndSendKeys(self.HTML_PASSWORD_ID, password);
             self.findAndClickButton(self.HTML_AMAZON_SIGNIN_BTN);
             if self.checkForErrorAlert():
@@ -59,6 +59,8 @@ class AmazonMusic:
             self.cleanupDriverAndExit();
 
     def handle2FA(self):
+        if 'Two-Step Verification' != self.driver.title:
+            return;
         while True:
             otp = self.getValidOTPOrQuit();
             self.findElementByIdAndSendKeys(self.HTML_MFA_OTP_ID, otp);
@@ -82,7 +84,8 @@ class AmazonMusic:
             for songDiv in songsDivs:
                 try:
                     songName = songDiv.get_attribute(self.HTML_ATTRIBUTE_FOR_SONG_NAME);
-                    songsSet.add(songName);
+                    artistName = songDiv.get_attribute(self.HTML_ATTRIBUTE_FOR_ARTIST_NAME);
+                    songsSet.add((songName, artistName));
                 except:
                     gotUnReferencedError = True;
             html.send_keys(Keys.PAGE_DOWN);
