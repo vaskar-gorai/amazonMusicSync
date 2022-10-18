@@ -12,11 +12,13 @@ class YouTube:
     API_SERVICE_NAME = 'youtube';
     API_VERSION = 'v3';
     client = None;
+
     @classmethod
     def fromAuthFile(cls, authFile = 'client-secret.json'):
         flow = InstalledAppFlow.from_client_secrets_file(authFile, cls.SCOPES);
         credentials = flow.run_console();
         YouTube.client = build(cls.API_SERVICE_NAME, cls.API_VERSION, credentials = credentials)
+        print(YouTube.client);
         return YouTube();
 
     def getPlaylist(self, playlistTitle):
@@ -35,9 +37,7 @@ class YouTube:
         for item in response['items']:
             if item['snippet']['title'] == playlistTitle:
                 return item['id'];
-
-        description = f"{playlistTitle} synced from amazon music";
-        return self.insertPlaylist(playlistTitle, description);
+        return None;
 
     def insertPlaylist(self, playlistTitle, description):
 
@@ -73,7 +73,7 @@ class YouTube:
             response = request.execute();
             return list(map(lambda a: a['id'], response['items']))
         except Exception as e:
-            print(e.resp, e.content);
+            print(e.content.decode('UTF-8'));
             exit(1);
 
     def insertVideoInPlaylist(self, videoId, playlistId):
@@ -85,7 +85,7 @@ class YouTube:
                 )
             )
         );
-        request = YouTube.client.playlistItems.insert(
+        request = YouTube.client.playlistItems().insert(
             part = 'snippet',
             body = requestBody
         );
@@ -93,10 +93,5 @@ class YouTube:
         try:
             response = request.execute();
         except Exception as e:
-            print(e.resp, e.content);
+            print(e.content.decode('UTF-8'));
             exit(1);
-
-
-if __name__ == '__main__':
-    youtube = YouTube.fromAuthFile();
-    print(youtube.getSongsInPlaylist(youtube.getPlaylist('sciency stuff')));
