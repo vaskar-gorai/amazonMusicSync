@@ -21,7 +21,7 @@ def main():
         i = i+1;
         if i > maxLen:
             break;
-        videoId = youtube.searchForVideo(songName+artistName)[0];
+        videoId = youtube.searchForVideo(songName + ' by ' + artistName)[0];
         youtube.insertVideoInPlaylist(videoId, playlistId);
 
 main();
