@@ -3,26 +3,74 @@
 from amazonMusic import *
 from youtube import *
 import keyring;
+import argparse;
+import sys;
+
+def getSongsFromAmazon(email, password):
+    amazonMusic = AmazonMusic();
+    amazonMusic.login(email, password);
+    songsSet = amazonMusic.getAllSavedSongs();
+    amazonMusic.closeDriver();
+    return songsSet;
+
+def getMappingsFromFile(fileName):
+    mapping = {};
+    try:
+        with open(fileName, 'r') as f:
+            mapping = json.load(f);
+    except IOError:
+        return mapping;
+
+def writeMapppingsToFile(fileName, mapping):
+    try:
+        with open(fileName, 'w') as f:
+            f.write(json.dumps(mapping));
+            f.flush();
+            f.close();
+    except IOError:
+        print('write failed');
 
 def main():
-    amazonMusic = AmazonMusic();
-    email = 'vasgorai09@gmail.com';
-    amazonMusic.login(email, keyring.get_password('AMAZON_MUSIC_APP', email));
-    songs = amazonMusic.getAllSavedSongs();
-    amazonMusic.closeDriver();
+    parser = argparse.ArgumentParser(description = 'Process arguments');
+    parser.add_argument('--email', help='Amazon email(default vasgorai09@gmail.com)', default='vasgorai09@gmail.com');
+    parser.add_argument('--auth', help='client auth secret file for login to youtube api', default='client-secret.json');
+    parser.add_argument('--json', help='json file with mapping from amazon song to youtube video', default='amazon-to-youtube.json');
+    parser.add_argument('--playlist', help='youtube playlist to be updated', default='amazon music test');
+    args = parser.parse_args(sys.argv[1:]);
+    password = keyring.get_password('AMAZON_MUSIC_APP', args.email)
+    songsSet = getSongsFromAmazon(args.email, password);
+
     youtube = YouTube.fromAuthFile();
-    playlistId = youtube.getPlaylist('amazon music test');
-    if playlistId == None:
-        playlistId = youtube.insertPlaylist('amazon music test');
+    try:
+        playlistId = youtube.getPlaylist(args.playlist);
+        if playlistId == None:
+            playlistId = youtube.insertPlaylist(args.playlist);
+    except YouTubeError as e:
+        print(e);
+        exit(1);
 
-    maxLen = 30;
-    i = 0;
-    for songName, artistName in songs:
-        i = i+1;
-        if i > maxLen:
+    mapping = getMappingsFromFile(args.json);
+
+    for song in songsSet:
+        print(f'doing for {song}')
+        if str(song) in mapping:
+            print(f'mapping found for {song}');
+            continue;
+        try:
+            videoId = youtube.searchForVideo(song.name + ' by ' + song.artist)[0];
+            youtube.insertVideoInPlaylist(videoId, playlistId);
+            mapping[song.id] = videoId;
+            print(f'mapping added for {song.name}');
+        except YouTubeError as e:
+            print(e);
             break;
-        videoId = youtube.searchForVideo(songName + ' by ' + artistName)[0];
-        youtube.insertVideoInPlaylist(videoId, playlistId);
+        except:
+            print('Something really bad happened! Writing file...');
+            break;
 
-main();
+    writeMapppingsToFile(args.json, mapping);
+
+
+if __name__ == "__main__":
+    main();
 
