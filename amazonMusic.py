@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import sys, getpass, time;
+from collections import namedtuple
 try:
     from selenium import webdriver
     from selenium.webdriver.common.keys import Keys
@@ -22,6 +23,8 @@ class atleast_n_elements_are_loaded:
             return False;
         return True;
 
+Song = namedtuple('Song', ['id', 'name', 'artist']);
+
 class AmazonMusic:
     amazonMusicUrl='https://music.amazon.in/';
     signInPath='forceSignIn';
@@ -35,6 +38,7 @@ class AmazonMusic:
     HTML_ATTRIBUTE_FOR_SONG_NAME='primary-text'
     HTML_ATTRIBUTE_FOR_ARTIST_NAME='secondary-text-1'
     PERCENTAGE_TO_BE_LOADED=0.9
+    SONG_ID='data-key'
 
     def __init__(self):
         try:
@@ -70,6 +74,12 @@ class AmazonMusic:
             else:
                 break;
 
+    def getSongAttributes(self, songDiv):
+        songId = songDiv.get_attribute(self.SONG_ID);
+        songName = songDiv.get_attribute(self.HTML_ATTRIBUTE_FOR_SONG_NAME);
+        artistName = songDiv.get_attribute(self.HTML_ATTRIBUTE_FOR_ARTIST_NAME);
+        return Song(songId, songName, artistName);
+
     def getAllSavedSongs(self):
         songsSet = set();
         self.loadUrl(self.amazonMusicUrl + self.songsPath);
@@ -83,9 +93,7 @@ class AmazonMusic:
             num_elements = len(songsDivs)*self.PERCENTAGE_TO_BE_LOADED;
             for songDiv in songsDivs:
                 try:
-                    songName = songDiv.get_attribute(self.HTML_ATTRIBUTE_FOR_SONG_NAME);
-                    artistName = songDiv.get_attribute(self.HTML_ATTRIBUTE_FOR_ARTIST_NAME);
-                    songsSet.add((songName, artistName));
+                    songsSet.add(self.getSongAttributes(songDiv));
                 except:
                     gotUnReferencedError = True;
             html.send_keys(Keys.PAGE_DOWN);
