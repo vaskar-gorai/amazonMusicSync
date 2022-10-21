@@ -19,6 +19,8 @@ def getMappingsFromFile(fileName):
         with open(fileName, 'r') as f:
             mapping = json.load(f);
     except IOError:
+        pass
+    finally:
         return mapping;
 
 def writeMapppingsToFile(fileName, mapping):
@@ -39,6 +41,7 @@ def main():
     args = parser.parse_args(sys.argv[1:]);
     password = keyring.get_password('AMAZON_MUSIC_APP', args.email)
     songsSet = getSongsFromAmazon(args.email, password);
+    mapping = getMappingsFromFile(args.json);
 
     youtube = YouTube.fromAuthFile();
     try:
@@ -49,7 +52,6 @@ def main():
         print(e);
         exit(1);
 
-    mapping = getMappingsFromFile(args.json);
 
     for song in songsSet:
         print(f'doing for {song}')
