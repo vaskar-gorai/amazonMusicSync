@@ -6,3 +6,6 @@
 <li>
 Handle case when amazon Music sometimes ask for captcha after entering password
 </li>
+<li>
+  Ask for password in login amazon if password is incorrect
+</li>
