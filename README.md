@@ -17,4 +17,4 @@ Handle case when amazon Music sometimes ask for captcha after entering password
 </li>
 <li>
   Handle different playlist of amazon not only added songs
- <\li>
+ </li>
