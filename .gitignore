@@ -1,0 +1,5 @@
+# Ignore sh files
+.sh
+
+#Ignore log files
+.log
