@@ -9,3 +9,12 @@ Handle case when amazon Music sometimes ask for captcha after entering password
 <li>
   Ask for password in login amazon if password is incorrect
 </li>
+<li>
+  Handle interrupt signals
+</li>
+<li>
+  Login automatically to google account
+</li>
+<li>
+  Handle different playlist of amazon not only added songs
+ <\li>
