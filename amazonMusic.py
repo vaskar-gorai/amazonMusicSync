@@ -91,6 +91,7 @@ class AmazonMusic:
             process = subprocess.Popen(['eog', os.path.abspath(fileName)]);
             captcha = input('Enter the characters shown:');
             process.kill();
+            process = subprocess.run['rm', fileName];
             return captcha;
         except urllib.error.HTTPError as e:
             sys.stderr.write(f'HTTPError({e.code})', e.reason);
