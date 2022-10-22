@@ -23,8 +23,10 @@ class atleast_n_elements_are_loaded:
         self.least_number = n;
 
     def __call__(self, driver):
-        if len(driver.find_elements(*self.locator)) < self.least_number :
+        if driver.find_elements(*self.locator)[-1] == self.least_number :
+            print('returning false');
             return False;
+        print('returning true');
         return True;
 
 Song = namedtuple('Song', ['id', 'name', 'artist']);
@@ -32,22 +34,8 @@ Song = namedtuple('Song', ['id', 'name', 'artist']);
 class AmazonMusic:
     amazonMusicUrl='https://music.amazon.in';
     signInPath='/forceSignIn';
-    HTML_EMAIL_ID='ap_email'
-    HTML_PASSWORD_ID='ap_password'
-    HTML_MFA_OTP_SUBMIT_BTN='auth-signin-button'
-    HTML_MFA_OTP_ID='auth-mfa-otpcode'
-    HTML_AMAZON_SIGNIN_BTN='signInSubmit'
     songsPath='/my/songs'
     playlistPath='/my/playlists';
-    HTML_MUSIC_DIV='music-image-row'
-    HTML_ATTRIBUTE_FOR_NAME='primary-text'
-    HTML_ATTRIBUTE_FOR_REF='primary-href';
-    HTML_ATTRIBUTE_FOR_ARTIST_NAME='secondary-text-1'
-    PERCENTAGE_TO_BE_LOADED=0.9;
-    HTML_CAPTCHA_IMG_ID='auth-captcha-image';
-    HTML_CAPTCHA_ID='auth-captcha-guess';
-    SONG_ID='data-key'
-    HTML_PLAYLIST_XPATH='//music-vertical-item';
 
     def __init__(self):
         try:
@@ -63,12 +51,16 @@ class AmazonMusic:
         try:
             captcha = '';
             while True:
-                self.findElementByIdAndSendKeys(self.HTML_EMAIL_ID, [Keys.CONTROL + 'a', Keys.DELETE]);
-                self.findElementByIdAndSendKeys(self.HTML_EMAIL_ID, userName);
+                EMAIL_ID = 'ap_email';
+                PASSWORD_ID = 'ap_password'
+                HTML_AMAZON_SIGNIN_BTN='signInSubmit'
+                HTML_CAPTCHA_ID='auth-captcha-guess';
+                self.findElementByIdAndSendKeys(EMAIL_ID, [Keys.CONTROL + 'a', Keys.DELETE]);
+                self.findElementByIdAndSendKeys(EMAIL_ID, userName);
                 if self.checkForWarningAlert():
-                    self.findElementByIdAndSendKeys(self.HTML_CAPTCHA_ID, captcha);
-                self.findElementByIdAndSendKeys(self.HTML_PASSWORD_ID, password);
-                self.findAndClickButton(self.HTML_AMAZON_SIGNIN_BTN);
+                    self.findElementByIdAndSendKeys(HTML_CAPTCHA_ID, captcha);
+                self.findElementByIdAndSendKeys(PASSWORD_ID, password);
+                self.findAndClickButton(HTML_AMAZON_SIGNIN_BTN);
                 if self.checkForWarningAlert() or self.checkForErrorAlert():
                     if self.checkForWarningAlert():
                         captcha = self.getCaptcha();
@@ -82,7 +74,8 @@ class AmazonMusic:
         return 0;
 
     def getCaptcha(self):
-        captchaDiv = self.findElementById(self.HTML_CAPTCHA_IMG_ID);
+        HTML_CAPTCHA_IMG_ID='auth-captcha-image';
+        captchaDiv = self.findElementById(HTML_CAPTCHA_IMG_ID);
         imgSrcUrl = self.getAttribute(captchaDiv, 'src');
         return self.showImageFromUrlAndGetCaptcha(imgSrcUrl);
 
@@ -90,12 +83,14 @@ class AmazonMusic:
         if 'Two-Step Verification' != self.driver.title:
             return;
         tries = 0;
+        HTML_MFA_OTP_SUBMIT_BTN = 'auth-signin-button';
+        HTML_MFA_OTP_ID='auth-mfa-otpcode'
         while True:
             if tries > 2:
                 self.cleanupDriverAndExit();
             otp = self.getValidOTPOrQuit();
-            self.findElementByIdAndSendKeys(self.HTML_MFA_OTP_ID, otp);
-            self.findAndClickButton(self.HTML_MFA_OTP_SUBMIT_BTN);
+            self.findElementByIdAndSendKeys(HTML_MFA_OTP_ID, otp);
+            self.findAndClickButton(HTML_MFA_OTP_SUBMIT_BTN);
             tries += 1;
             if self.checkForErrorAlert():
                 sys.stderr.write('The OTP you entered is invalid!\n');
@@ -103,24 +98,25 @@ class AmazonMusic:
                 break;
 
     def getAllSavedSongs(self, path = ''):
+        HTML_MUSIC_DIV='music-image-row'
+        PERCENTAGE_TO_BE_LOADED=0.9;
         songsSet = set();
         if not path:
             path = self.songsPath;
         self.loadUrl(self.amazonMusicUrl + path);
-        locator = (By.TAG_NAME, self.HTML_MUSIC_DIV);
+        locator = (By.TAG_NAME, HTML_MUSIC_DIV);
         if self.waitFor(EC.presence_of_element_located(locator)):
             return songsSet;
         html = self.driver.find_element(By.TAG_NAME, 'html');
         while True:
             songDivs = self.findElements(locator);
-            num_elements = len(songDivs)*self.PERCENTAGE_TO_BE_LOADED;
+            num_elements = len(songDivs)*PERCENTAGE_TO_BE_LOADED;
             for songDiv in songDivs:
                 song = self.getSongAttributes(songDiv);
                 if song:
                     songsSet.add(song);
             html.send_keys(Keys.PAGE_DOWN);
-            if self.waitFor(atleast_n_elements_are_loaded((By.TAG_NAME, self.HTML_MUSIC_DIV), num_elements)):
-                print('returning songsSet');
+            if self.waitFor(atleast_n_elements_are_loaded((By.TAG_NAME, HTML_MUSIC_DIV), songDivs[-1])):
                 return songsSet;
 
     def getSongsFromPlaylist(self, playlistName):
@@ -133,16 +129,19 @@ class AmazonMusic:
 
     def searchForPlaylist(self, playlistName):
         self.loadUrl(self.amazonMusicUrl + self.playlistPath);
-        locator = (By.XPATH, self.HTML_PLAYLIST_XPATH);
+        HTML_PLAYLIST_XPATH='//music-vertical-item';
+        HTML_ATTRIBUTE_FOR_REF='primary-href';
+        HTML_ATTRIBUTE_FOR_NAME='primary-text'
+        locator = (By.XPATH, HTML_PLAYLIST_XPATH);
         if self.waitFor(EC.presence_of_element_located(locator)):
             return '';
         playlists = self.findElements(locator);
         for playlist in playlists:
-            curName = self.getAttribute(playlist, self.HTML_ATTRIBUTE_FOR_NAME);
+            curName = self.getAttribute(playlist, HTML_ATTRIBUTE_FOR_NAME);
             curName = curName if curName else '';
             if playlistName.lower() in curName.lower():
-                src = self.getAttribute(playlist, self.HTML_ATTRIBUTE_FOR_REF);
-                return src;
+                playlistPath = self.getAttribute(playlist, HTML_ATTRIBUTE_FOR_REF);
+                return playlistPath;
         return '';
 
     def showImageFromUrlAndGetCaptcha(self, url):
@@ -172,18 +171,23 @@ class AmazonMusic:
 
     def getSongAttributes(self, songDiv):
         try:
-            songId = songDiv.get_attribute(self.SONG_ID);
-            songName = songDiv.get_attribute(self.HTML_ATTRIBUTE_FOR_NAME);
-            artistName = songDiv.get_attribute(self.HTML_ATTRIBUTE_FOR_ARTIST_NAME);
+            SONG_ID='data-key'
+            HTML_ATTRIBUTE_FOR_ARTIST_NAME='secondary-text-1'
+            HTML_ATTRIBUTE_FOR_NAME='primary-text'
+            songId = songDiv.get_attribute(SONG_ID);
+            songName = songDiv.get_attribute(HTML_ATTRIBUTE_FOR_NAME);
+            artistName = songDiv.get_attribute(HTML_ATTRIBUTE_FOR_ARTIST_NAME);
         except StaleElementReferenceException:
             return None;
         except NoSuchWindowException:
+            self.cleanupDriverAndExit();
+        except InvalidSessionIdException:
             self.cleanupDriverAndExit();
         return Song(songId, songName, artistName);
 
     def waitFor(self, waitCond):
         try:
-            WebDriverWait(self.driver, 5).until(
+            WebDriverWait(self.driver, 10).until(
                 waitCond
             );
             return 0;
