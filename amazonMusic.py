@@ -30,21 +30,24 @@ class atleast_n_elements_are_loaded:
 Song = namedtuple('Song', ['id', 'name', 'artist']);
 
 class AmazonMusic:
-    amazonMusicUrl='https://music.amazon.in/';
-    signInPath='forceSignIn';
+    amazonMusicUrl='https://music.amazon.in';
+    signInPath='/forceSignIn';
     HTML_EMAIL_ID='ap_email'
     HTML_PASSWORD_ID='ap_password'
     HTML_MFA_OTP_SUBMIT_BTN='auth-signin-button'
     HTML_MFA_OTP_ID='auth-mfa-otpcode'
     HTML_AMAZON_SIGNIN_BTN='signInSubmit'
-    songsPath='my/songs'
+    songsPath='/my/songs'
+    playlistPath='/my/playlists';
     HTML_MUSIC_DIV='music-image-row'
-    HTML_ATTRIBUTE_FOR_SONG_NAME='primary-text'
+    HTML_ATTRIBUTE_FOR_NAME='primary-text'
+    HTML_ATTRIBUTE_FOR_REF='primary-href';
     HTML_ATTRIBUTE_FOR_ARTIST_NAME='secondary-text-1'
     PERCENTAGE_TO_BE_LOADED=0.9;
     HTML_CAPTCHA_IMG_ID='auth-captcha-image';
     HTML_CAPTCHA_ID='auth-captcha-guess';
     SONG_ID='data-key'
+    HTML_PLAYLIST_XPATH='//music-vertical-item';
 
     def __init__(self):
         try:
@@ -53,7 +56,7 @@ class AmazonMusic:
             self.driver = webdriver.Firefox(options=options);
             self.loadUrl(self.amazonMusicUrl + self.signInPath);
         except:
-            sys.stderr.write("Firefox not initialized!");
+            sys.stderr.write("Firefox not initialized!\n");
             exit(1);
 
     def login(self, userName, password):
@@ -77,6 +80,70 @@ class AmazonMusic:
             print(e);
             self.cleanupDriverAndExit();
         return 0;
+
+    def getCaptcha(self):
+        captchaDiv = self.findElementById(self.HTML_CAPTCHA_IMG_ID);
+        imgSrcUrl = self.getAttribute(captchaDiv, 'src');
+        return self.showImageFromUrlAndGetCaptcha(imgSrcUrl);
+
+    def handle2FA(self):
+        if 'Two-Step Verification' != self.driver.title:
+            return;
+        tries = 0;
+        while True:
+            if tries > 2:
+                self.cleanupDriverAndExit();
+            otp = self.getValidOTPOrQuit();
+            self.findElementByIdAndSendKeys(self.HTML_MFA_OTP_ID, otp);
+            self.findAndClickButton(self.HTML_MFA_OTP_SUBMIT_BTN);
+            tries += 1;
+            if self.checkForErrorAlert():
+                sys.stderr.write('The OTP you entered is invalid!\n');
+            else:
+                break;
+
+    def getAllSavedSongs(self, path = ''):
+        songsSet = set();
+        if not path:
+            path = self.songsPath;
+        self.loadUrl(self.amazonMusicUrl + path);
+        locator = (By.TAG_NAME, self.HTML_MUSIC_DIV);
+        if self.waitFor(EC.presence_of_element_located(locator)):
+            return songsSet;
+        html = self.driver.find_element(By.TAG_NAME, 'html');
+        while True:
+            songDivs = self.findElements(locator);
+            num_elements = len(songDivs)*self.PERCENTAGE_TO_BE_LOADED;
+            for songDiv in songDivs:
+                song = self.getSongAttributes(songDiv);
+                if song:
+                    songsSet.add(song);
+            html.send_keys(Keys.PAGE_DOWN);
+            if self.waitFor(atleast_n_elements_are_loaded((By.TAG_NAME, self.HTML_MUSIC_DIV), num_elements)):
+                print('returning songsSet');
+                return songsSet;
+
+    def getSongsFromPlaylist(self, playlistName):
+        playlistPath = self.searchForPlaylist(playlistName);
+        if not playlistPath:
+            sys.stderr.write(f'{playlistName} playlist not found\n');
+            self.cleanupDriverAndExit();
+
+        return self.getAllSavedSongs(playlistPath);
+
+    def searchForPlaylist(self, playlistName):
+        self.loadUrl(self.amazonMusicUrl + self.playlistPath);
+        locator = (By.XPATH, self.HTML_PLAYLIST_XPATH);
+        if self.waitFor(EC.presence_of_element_located(locator)):
+            return '';
+        playlists = self.findElements(locator);
+        for playlist in playlists:
+            curName = self.getAttribute(playlist, self.HTML_ATTRIBUTE_FOR_NAME);
+            curName = curName if curName else '';
+            if playlistName.lower() in curName.lower():
+                src = self.getAttribute(playlist, self.HTML_ATTRIBUTE_FOR_REF);
+                return src;
+        return '';
 
     def showImageFromUrlAndGetCaptcha(self, url):
         try:
@@ -103,74 +170,56 @@ class AmazonMusic:
             print(e);
         self.cleanupDriverAndExit();
 
-    def getCaptcha(self):
-        captchaDiv = self.findElementById(self.HTML_CAPTCHA_IMG_ID);
-        imgSrcUrl = captchaDiv.get_attribute('src');
-        print(imgSrcUrl);
-        return self.showImageFromUrlAndGetCaptcha(imgSrcUrl);
-
-    def handle2FA(self):
-        if 'Two-Step Verification' != self.driver.title:
-            return;
-        tries = 0;
-        while True:
-            if tries > 2:
-                self.cleanupDriverAndExit();
-            otp = self.getValidOTPOrQuit();
-            self.findElementByIdAndSendKeys(self.HTML_MFA_OTP_ID, otp);
-            self.findAndClickButton(self.HTML_MFA_OTP_SUBMIT_BTN);
-            tries += 1;
-            if self.checkForErrorAlert():
-                sys.stderr.write('The OTP you entered is invalid!\n');
-            else:
-                break;
-
     def getSongAttributes(self, songDiv):
-        songId = songDiv.get_attribute(self.SONG_ID);
-        songName = songDiv.get_attribute(self.HTML_ATTRIBUTE_FOR_SONG_NAME);
-        artistName = songDiv.get_attribute(self.HTML_ATTRIBUTE_FOR_ARTIST_NAME);
+        try:
+            songId = songDiv.get_attribute(self.SONG_ID);
+            songName = songDiv.get_attribute(self.HTML_ATTRIBUTE_FOR_NAME);
+            artistName = songDiv.get_attribute(self.HTML_ATTRIBUTE_FOR_ARTIST_NAME);
+        except StaleElementReferenceException:
+            return None;
+        except NoSuchWindowException:
+            self.cleanupDriverAndExit();
         return Song(songId, songName, artistName);
 
-    def getAllSavedSongs(self):
-        songsSet = set();
-        self.loadUrl(self.amazonMusicUrl + self.songsPath);
-        WebDriverWait(self.driver, 10).until(
-            EC.presence_of_element_located((By.TAG_NAME, self.HTML_MUSIC_DIV))
-        );
-        html = self.driver.find_element(By.TAG_NAME, 'html');
-        while True:
-            gotUnReferencedError = False;
-            songsDivs = self.driver.find_elements(By.TAG_NAME, self.HTML_MUSIC_DIV);
-            num_elements = len(songsDivs)*self.PERCENTAGE_TO_BE_LOADED;
-            for songDiv in songsDivs:
-                try:
-                    songsSet.add(self.getSongAttributes(songDiv));
-                except:
-                    gotUnReferencedError = True;
-            html.send_keys(Keys.PAGE_DOWN);
-            try:
-                WebDriverWait(self.driver, 5).until(
-                    atleast_n_elements_are_loaded((By.TAG_NAME, self.HTML_MUSIC_DIV), num_elements)
-                );
-            except TimeoutException:
-                return songsSet;
+    def waitFor(self, waitCond):
+        try:
+            WebDriverWait(self.driver, 5).until(
+                waitCond
+            );
+            return 0;
+        except TimeoutException:
+            return 1;
+        except WebDriverException:
+            self.cleanupDriverAndExit();
 
+    def getAttribute(self, element, attribute):
+        try:
+            return element.get_attribute(attribute);
+        except WebDriverException:
+            self.cleanupDriverAndExit();
+
+    def findElements(self, locator):
+        try:
+            return self.driver.find_elements(*locator);
+        except NoSuchElementException:
+            return [];
+        except WebDriverException:
+            self.cleanupDriverAndExit();
 
     def findElementById(self, elementId):
         try:
-            element = WebDriverWait(self.driver, 5).until(
-                EC.presence_of_element_located((By.ID, elementId))
-            );
+            element = self.driver.find_element(By.ID, elementId);
         except NoSuchElementException:
-            sys.stderr.write(f"no element found with {elementId}\n");
-            self.cleanupDriverAndExit();
+            return None;
         except WebDriverException:
             self.cleanupDriverAndExit();
 
         return element;
 
     def findElementByIdAndSendKeys(self, elementId, keys):
-        self.findElementById(elementId).send_keys(keys);
+        element =  self.findElementById(elementId);
+        if element:
+            element.send_keys(keys);
 
     def findAndClickButton(self, buttonId):
         try:
@@ -184,22 +233,12 @@ class AmazonMusic:
             self.cleanupDriverAndExit();
 
     def checkForErrorAlert(self):
-        try:
-            error = self.driver.find_element(By.ID, 'auth-error-message-box');
-        except NoSuchElementException:
-            return 0;
-        except WebDriverException:
-            self.cleanupDriverAndExit();
-        return 1;
+        element = self.findElementById('auth-error-message-box');
+        return 1 if element else 0;
 
     def checkForWarningAlert(self):
-        try:
-            error = self.driver.find_element(By.ID, 'auth-warning-message-box');
-        except NoSuchElementException:
-            return 0;
-        except WebDriverException:
-            self.cleanupDriverAndExit();
-        return 1;
+        element = self.findElementById('auth-warning-message-box');
+        return 1 if element else 0;
 
     def loadUrl(self, url):
         try:
@@ -207,16 +246,6 @@ class AmazonMusic:
         except WebDriverException:
             sys.stderr.write(f"{url} not found\n");
             self.cleanupDriverAndExit(self.driver);
-
-    def cleanupDriverAndExit(self):
-        self.closeDriver();
-        exit();
-
-    def closeDriver(self):
-        try:
-            self.driver.close();
-        except:
-            pass
 
     def getValidOTPOrQuit(self):
         while True:
@@ -230,3 +259,13 @@ class AmazonMusic:
                 continue;
             break;
         return otp;
+
+    def cleanupDriverAndExit(self):
+        self.closeDriver();
+        exit();
+
+    def closeDriver(self):
+        try:
+            self.driver.close();
+        except:
+            pass
