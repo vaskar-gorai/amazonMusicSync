@@ -16,5 +16,5 @@
   Login automatically to google account
 </li>
 <li>
-  Handle different playlist of amazon not only added songs
+  <s>Handle different playlist of amazon not only added songs</s>
  </li>
