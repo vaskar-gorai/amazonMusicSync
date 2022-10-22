@@ -17,7 +17,7 @@ except ImportError:
     print("selenium not found!")
     exit(1);
 
-class atleast_n_elements_are_loaded:
+class new_element_is_found:
     def __init__(self, locator, n):
         self.locator = locator;
         self.least_number = n;
@@ -116,7 +116,7 @@ class AmazonMusic:
                 if song:
                     songsSet.add(song);
             html.send_keys(Keys.PAGE_DOWN);
-            if self.waitFor(atleast_n_elements_are_loaded((By.TAG_NAME, HTML_MUSIC_DIV), songDivs[-1])):
+            if self.waitFor(new_element_is_found((By.TAG_NAME, HTML_MUSIC_DIV), songDivs[-1])):
                 return songsSet;
 
     def getSongsFromPlaylist(self, playlistName):
