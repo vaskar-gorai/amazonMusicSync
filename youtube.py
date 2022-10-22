@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import os, json
-
+import oauthlib.oauth2
 import google.oauth2.credentials
 import google_auth_oauthlib.flow
 from googleapiclient.discovery import build
@@ -22,10 +22,15 @@ class YouTube:
     client = None;
 
     @classmethod
-    def fromAuthFile(cls, authFile = 'client-secret.json'):
-        flow = InstalledAppFlow.from_client_secrets_file(authFile, cls.SCOPES);
-        credentials = flow.run_console();
-        YouTube.client = build(cls.API_SERVICE_NAME, cls.API_VERSION, credentials = credentials)
+    def fromAuthFile(cls, authFile):
+        try:
+            flow = InstalledAppFlow.from_client_secrets_file(authFile, cls.SCOPES);
+            credentials = flow.run_console();
+            YouTube.client = build(cls.API_SERVICE_NAME, cls.API_VERSION, credentials = credentials)
+        except FileNotFoundError:
+            raise YouTubeError(f'file {authFile} not found');
+        except oauthlib.oauth2.rfc6749.errors.InvalidClientError:
+            raise YouTubeError('Invalid secert client code');
         return YouTube();
 
     def getPlaylist(self, playlistTitle):

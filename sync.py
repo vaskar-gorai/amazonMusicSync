@@ -43,8 +43,8 @@ def main():
     songsSet = getSongsFromAmazon(args.email, password);
     mapping = getMappingsFromFile(args.json);
 
-    youtube = YouTube.fromAuthFile();
     try:
+        youtube = YouTube.fromAuthFile(args.auth);
         playlistId = youtube.getPlaylist(args.playlist);
         if playlistId == None:
             playlistId = youtube.insertPlaylist(args.playlist);
