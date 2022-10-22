@@ -4,10 +4,10 @@
 <s>Track videoId to songs for checking if the song is already in the playlist</s>
   </li>
 <li>
-Handle case when amazon Music sometimes ask for captcha after entering password
+<s>Handle case when amazon Music sometimes ask for captcha after entering password</s>
 </li>
 <li>
-  Ask for password in login amazon if password is incorrect
+  <s>Ask for password in login amazon if password is incorrect</s>
 </li>
 <li>
   Handle interrupt signals
