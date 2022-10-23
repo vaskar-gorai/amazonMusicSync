@@ -38,7 +38,7 @@ class AmazonMusic:
     def __init__(self):
         try:
             options = Options();
-            # options.add_argument('--headless');
+            options.add_argument('--headless');
             self.driver = webdriver.Firefox(options=options);
             self.loadUrl(self.amazonMusicUrl + self.signInPath);
         except:
