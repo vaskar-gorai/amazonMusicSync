@@ -169,12 +169,13 @@ class AmazonMusic:
 
     def getSongAttributes(self, songDiv):
         try:
-            SONG_ID='data-key'
             HTML_ATTRIBUTE_FOR_ARTIST_NAME='secondary-text-1'
+            HTML_ATTRIBUTE_FOR_ALBUM='secondary-text-2'
             HTML_ATTRIBUTE_FOR_NAME='primary-text'
-            songId = songDiv.get_attribute(SONG_ID);
             songName = songDiv.get_attribute(HTML_ATTRIBUTE_FOR_NAME);
             artistName = songDiv.get_attribute(HTML_ATTRIBUTE_FOR_ARTIST_NAME);
+            albumName = songDiv.get_attribute(HTML_ATTRIBUTE_FOR_ALBUM);
+            songId = songName+artistName+albumName;
         except StaleElementReferenceException:
             return None;
         except NoSuchWindowException:
