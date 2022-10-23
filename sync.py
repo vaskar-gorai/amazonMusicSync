@@ -56,9 +56,6 @@ def main():
     if not args.json:
         args.json = args.playlist.replace(' ', '_') + '.json';
     password = keyring.get_password('AMAZON_MUSIC_APP', args.email)
-    amazonSongsSet = getSongsFromAmazon(args.email, password);
-    mapping = getMappingsFromFile(args.json);
-    addition, deletion = getAdditionAndDeletion(amazonSongsSet, mapping)
 
     try:
         if args.token:
@@ -70,6 +67,10 @@ def main():
             playlistId = youtube.insertPlaylist(args.playlist);
     except YouTubeError as e:
         exit(1);
+
+    amazonSongsSet = getSongsFromAmazon(args.email, password);
+    mapping = getMappingsFromFile(args.json);
+    addition, deletion = getAdditionAndDeletion(amazonSongsSet, mapping)
 
     for song in addition:
         try:
