@@ -34,11 +34,13 @@ def writeMapppingsToFile(fileName, mapping):
 
 def main():
     parser = argparse.ArgumentParser(description = 'Process arguments');
-    parser.add_argument('--email', help='Amazon email(default vasgorai09@gmail.com)', default='vasgorai09@gmail.com');
-    parser.add_argument('--token', help='client auth secret file for login to youtube api', default='token.json');
-    parser.add_argument('--json', help='json file with mapping from amazon song to youtube video', default='amazon-to-youtube.json');
+    parser.add_argument('--email', help='Amazon email', default='vasgorai09@gmail.com');
+    parser.add_argument('--token', help='Token for authenticating with google', default='token.json');
     parser.add_argument('--playlist', help='youtube playlist to be updated', default='amazon music test');
+    parser.add_argument('--json', help='json file with mapping from amazon song to youtube video');
     args = parser.parse_args(sys.argv[1:]);
+    if not args.json:
+        args.json = args.playlist.replace(' ', '_') + '.json';
     password = keyring.get_password('AMAZON_MUSIC_APP', args.email)
     songsSet = getSongsFromAmazon(args.email, password);
     mapping = getMappingsFromFile(args.json);
@@ -55,6 +57,7 @@ def main():
 
     for song in songsSet:
         if song.id in mapping:
+            print(f'mapping found for {song.name}')
             continue;
         try:
             videoId = youtube.searchForVideo(song.name + ' by ' + song.artist)[0];
