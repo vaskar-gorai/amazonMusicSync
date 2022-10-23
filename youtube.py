@@ -137,18 +137,17 @@ class YouTube:
 
 
     def getVideoIDsInPlaylist(self, playlistId):
-        playlistItems = [];
+        playlistItems = set();
         requestBody = dict(
             part = 'contentDetails',
             playlistId = playlistId,
             maxResults = 50,
         )
         while True:
-            print(requestBody);
             request = YouTube.client.playlistItems().list(**requestBody);
             try:
                 response = request.execute();
-                playlistItems.extend((map(lambda a: a['contentDetails']['videoId'], response['items'])))
+                playlistItems.update((map(lambda a: a['contentDetails']['videoId'], response['items'])))
             except Exception as e:
                 error = json.loads(e.content.decode('UTF-8'));
                 raise YouTubeError(error['error']['message']);
