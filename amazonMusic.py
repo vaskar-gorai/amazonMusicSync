@@ -24,9 +24,7 @@ class new_element_is_found:
 
     def __call__(self, driver):
         if driver.find_elements(*self.locator)[-1] == self.least_number :
-            print('returning false');
             return False;
-        print('returning true');
         return True;
 
 Song = namedtuple('Song', ['id', 'name', 'artist']);
