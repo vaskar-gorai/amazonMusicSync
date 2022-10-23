@@ -2,12 +2,9 @@
 import os, json
 import requests;
 import oauthlib.oauth2
-import google.auth.transport
 import google.oauth2.credentials
 import google_auth_oauthlib.flow
 from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
-from google_auth_oauthlib.flow import InstalledAppFlow
 
 class YouTubeError(Exception):
     def __init__(self, message = ''):
