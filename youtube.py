@@ -7,8 +7,13 @@ import google_auth_oauthlib.flow
 from googleapiclient.discovery import build
 
 class YouTubeError(Exception):
-    def __init__(self, message = ''):
+    INVALID_SECRET_CODE = 1;
+    FILE_NOT_FOUND = 2;
+    INVALID_TOKEN = 3;
+
+    def __init__(self, message = '', errorCode = 1):
         self.message = message;
+        self.errorCode = errorCode;
 
     def __str__(self):
         return self.message;
@@ -20,18 +25,31 @@ class YouTube:
     client = None;
 
     @classmethod
+    def fromAuthFile(cls, authFile):
+        try:
+            flow = google_auth_oauthlib.flow.InstalledAppFlow.from_client_secrets_file(authFile, cls.SCOPES);
+            credentials = flow.run_console();
+            YouTube.client = build(cls.API_SERVICE_NAME, cls.API_VERSION, credentials = credentials)
+            return YouTube();
+        except FileNotFoundError:
+            raise YouTubeError(f'file {token} not found', YouTubeError.FILE_NOT_FOUND);
+        except oauthlib.oauth2.rfc6749.errors.InvalidClientError:
+            raise YouTubeError('Invalid secert client code', YouTubeError.INVALID_SECRET_CODE);
+        return YouTube();
+
+    @classmethod
     def fromToken(cls, token):
         try:
             credentials = google.oauth2.credentials.Credentials.from_authorized_user_file(token);
             if not credentials.valid or credentials.expired:
                 credentials = YouTube.refreshCredentials(credentials);
-            if not credentials.valid:
-                sys.stderr.write('Failed to get valid credentials\n');
+            if not credentials.valid or credentials.expired:
+                raise YouTubeError('Token invalid! Please generate new token via authFile', YouTubeError.INVALID_TOKEN);
             YouTube.client = build(cls.API_SERVICE_NAME, cls.API_VERSION, credentials = credentials)
         except FileNotFoundError:
-            raise YouTubeError(f'file {token} not found');
+            raise YouTubeError(f'file {token} not found', YouTubeError.FILE_NOT_FOUND);
         except oauthlib.oauth2.rfc6749.errors.InvalidClientError:
-            raise YouTubeError('Invalid secert client code');
+            raise YouTubeError('Invalid secert client code', YouTubeError.INVALID_SECRET_CODE);
         return YouTube();
 
     @classmethod
