@@ -18,3 +18,6 @@
 <li>
   <s>Handle different playlist of amazon not only added songs</s>
  </li>
+<li>
+Handle deletion of songs
+</li>
