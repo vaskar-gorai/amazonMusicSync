@@ -13,6 +13,19 @@ def getSongsFromAmazon(email, password):
     amazonMusic.closeDriver();
     return songsSet;
 
+def getAdditionAndDeletion(songs, mapping):
+    reverseMapping = {}
+    for song in songs:
+        reverseMapping[song.id] = song
+
+    addition = set(filter(lambda song: song.id not in mapping, songs))
+    deletion = {}
+    for songId in filter(lambda songId: songId not in reverseMapping, mapping):
+        deletion[songId] = mapping[songId]
+
+    return addition, deletion;
+
+
 def getMappingsFromFile(fileName):
     mapping = {};
     try:
@@ -23,7 +36,7 @@ def getMappingsFromFile(fileName):
     finally:
         return mapping;
 
-def writeMapppingsToFile(fileName, mapping):
+def writeMappingsToFile(fileName, mapping):
     try:
         with open(fileName, 'w') as f:
             f.write(json.dumps(mapping));
@@ -43,8 +56,9 @@ def main():
     if not args.json:
         args.json = args.playlist.replace(' ', '_') + '.json';
     password = keyring.get_password('AMAZON_MUSIC_APP', args.email)
-    songsSet = getSongsFromAmazon(args.email, password);
+    amazonSongsSet = getSongsFromAmazon(args.email, password);
     mapping = getMappingsFromFile(args.json);
+    addition, deletion = getAdditionAndDeletion(amazonSongsSet, mapping)
 
     try:
         if args.token:
@@ -55,28 +69,30 @@ def main():
         if playlistId == None:
             playlistId = youtube.insertPlaylist(args.playlist);
     except YouTubeError as e:
-        print(e);
         exit(1);
 
-
-    for song in songsSet:
-        if song.id in mapping:
-            print(f'mapping found for {song.name}')
-            continue;
+    for song in addition:
         try:
             videoId = youtube.searchForVideo(song.name + ' by ' + song.artist)[0];
             youtube.insertVideoInPlaylist(videoId, playlistId);
             mapping[song.id] = videoId;
         except YouTubeError as e:
-            print(e);
             break;
         except:
-            print('Something really bad happened! Writing file...');
-            break;
+            print(e);
+            writeMappingsToFile(args.json, mapping);
+            exit(1);
 
-    writeMapppingsToFile(args.json, mapping);
-
+    for songId in deletion:
+        try:
+            playlistItemId = youtube.getPlaylistItemId(mapping[songId], playlistId);
+            youtube.deleteVideoInPlaylist(playlistItemId);
+            mapping.pop(songId)
+        except YouTubeError as e:
+        except Exception as e:
+            print(e);
+            writeMappingsToFile(args.json, mapping);
+            exit(1);
 
 if __name__ == "__main__":
     main();
-

@@ -78,6 +78,14 @@ class YouTube:
             sys.stderr.write('Bad response received\n');
         return credentials;
 
+    def getResponse(self, request):
+        try:
+            response = request.execute();
+        except Exception as e:
+            error = json.loads(e.content.decode('UTF-8'));
+            raise YouTubeError(error['error']['message']);
+        return response
+
     def getPlaylist(self, playlistTitle):
         request = YouTube.client.playlists().list(
             part="snippet",
@@ -85,11 +93,7 @@ class YouTube:
             mine=True
         );
 
-        try:
-            response = request.execute();
-        except Exception as e:
-            error = json.loads(e.content.decode('UTF-8'));
-            raise YouTubeError(error['error']['message']);
+        response = self.getResponse(request);
 
         for item in response['items']:
             if item['snippet']['title'] == playlistTitle:
@@ -111,13 +115,7 @@ class YouTube:
             part = 'snippet,status',
             body = requestBody
         );
-
-        try:
-            response = request.execute();
-            return response['id'];
-        except Exception as e:
-            error = json.loads(e.content.decode('UTF-8'));
-            raise YouTubeError(error['error']['message']);
+        self.getResponse(request);
 
     def searchForVideo(self, title):
         request = YouTube.client.search().list(
@@ -128,16 +126,12 @@ class YouTube:
             type = 'video'
         );
 
-        try:
-            response = request.execute();
-            return list(map(lambda a: a['id']['videoId'], response['items']));
-        except Exception as e:
-            error = json.loads(e.content.decode('UTF-8'));
-            raise YouTubeError(error['error']['message']);
+        response = self.getResponse(requeset);
+        return list(map(lambda a: a['id']['videoId'], response['items']));
 
 
     def getVideoIDsInPlaylist(self, playlistId):
-        playlistItems = set();
+        playlistItems = [];
         requestBody = dict(
             part = 'contentDetails',
             playlistId = playlistId,
@@ -145,17 +139,23 @@ class YouTube:
         )
         while True:
             request = YouTube.client.playlistItems().list(**requestBody);
-            try:
-                response = request.execute();
-                playlistItems.update((map(lambda a: a['contentDetails']['videoId'], response['items'])))
-            except Exception as e:
-                error = json.loads(e.content.decode('UTF-8'));
-                raise YouTubeError(error['error']['message']);
+            response = self.getResponse(request)
+            playlistItems.extend((map(lambda a: a['contentDetails']['videoId'], response['items'])))
 
             if 'nextPageToken' in response:
                 requestBody['pageToken'] = response['nextPageToken']
             else:
                 return playlistItems
+
+    def getPlaylistItemId(self, videoId, playlistId):
+        request = YouTube.client.playlistItems().list(
+            part = 'id',
+            playlistId = playlistId,
+            videoId = videoId
+        )
+
+        response = self.getResponse(request);
+        return response['items'][0]['id'] if len(response['items']) > 0 else '';
 
     def insertVideoInPlaylist(self, videoId, playlistId):
         requestBody = dict(
@@ -171,9 +171,11 @@ class YouTube:
             part = 'snippet',
             body = requestBody
         );
+        self.getResponse(request);
 
-        try:
-            response = request.execute();
-        except Exception as e:
-            error = json.loads(e.content.decode('UTF-8'));
-            raise YouTubeError(error['error']['message']);
+    def deleteVideoInPlaylist(self, playlistItemId):
+        request = YouTube.client.playlistItems().delete(
+            id = playlistItemId
+        );
+
+        self.getResponse(request);
