@@ -32,7 +32,7 @@ class YouTube:
             YouTube.client = build(cls.API_SERVICE_NAME, cls.API_VERSION, credentials = credentials)
             return YouTube();
         except FileNotFoundError:
-            raise YouTubeError(f'file {token} not found', YouTubeError.FILE_NOT_FOUND);
+            raise YouTubeError(f'file {authFile} not found', YouTubeError.FILE_NOT_FOUND);
         except oauthlib.oauth2.rfc6749.errors.InvalidClientError:
             raise YouTubeError('Invalid secert client code', YouTubeError.INVALID_SECRET_CODE);
         return YouTube();
@@ -137,17 +137,26 @@ class YouTube:
 
 
     def getVideoIDsInPlaylist(self, playlistId):
-        request = YouTube.client.playlistItems().list(
-            part = 'snippet',
-            playlistId = playlistId
-        );
+        playlistItems = [];
+        requestBody = dict(
+            part = 'contentDetails',
+            playlistId = playlistId,
+            maxResults = 50,
+        )
+        while True:
+            print(requestBody);
+            request = YouTube.client.playlistItems().list(**requestBody);
+            try:
+                response = request.execute();
+                playlistItems.extend((map(lambda a: a['contentDetails']['videoId'], response['items'])))
+            except Exception as e:
+                error = json.loads(e.content.decode('UTF-8'));
+                raise YouTubeError(error['error']['message']);
 
-        try:
-            response = request.execute();
-            return list(map(lambda a: a['id'], response['items']))
-        except Exception as e:
-            error = json.loads(e.content.decode('UTF-8'));
-            raise YouTubeError(error['error']['message']);
+            if 'nextPageToken' in response:
+                requestBody['pageToken'] = response['nextPageToken']
+            else:
+                return playlistItems
 
     def insertVideoInPlaylist(self, videoId, playlistId):
         requestBody = dict(
