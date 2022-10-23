@@ -54,15 +54,12 @@ def main():
 
 
     for song in songsSet:
-        print(f'doing for {song}')
-        if str(song) in mapping:
-            print(f'mapping found for {song}');
+        if song.id in mapping:
             continue;
         try:
             videoId = youtube.searchForVideo(song.name + ' by ' + song.artist)[0];
             youtube.insertVideoInPlaylist(videoId, playlistId);
             mapping[song.id] = videoId;
-            print(f'mapping added for {song.name}');
         except YouTubeError as e:
             print(e);
             break;
