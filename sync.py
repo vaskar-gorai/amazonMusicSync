@@ -35,7 +35,8 @@ def writeMapppingsToFile(fileName, mapping):
 def main():
     parser = argparse.ArgumentParser(description = 'Process arguments');
     parser.add_argument('--email', help='Amazon email', default='vasgorai09@gmail.com');
-    parser.add_argument('--token', help='Token for authenticating with google', default='token.json');
+    parser.add_argument('--token', help='Token for authenticating with google');
+    parser.add_argument('--auth', help='Auth File for authentication');
     parser.add_argument('--playlist', help='youtube playlist to be updated', default='amazon music test');
     parser.add_argument('--json', help='json file with mapping from amazon song to youtube video');
     args = parser.parse_args(sys.argv[1:]);
@@ -46,7 +47,10 @@ def main():
     mapping = getMappingsFromFile(args.json);
 
     try:
-        youtube = YouTube.fromToken(args.token);
+        if args.token:
+            youtube = YouTube.fromToken(args.token);
+        elif args.auth:
+            youtube = YouTube.fromAuthFile(args.auth);
         playlistId = youtube.getPlaylist(args.playlist);
         if playlistId == None:
             playlistId = youtube.insertPlaylist(args.playlist);
