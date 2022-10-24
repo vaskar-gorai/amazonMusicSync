@@ -40,13 +40,13 @@ class AmazonMusic:
             options = Options();
             options.add_argument('--headless');
             self.driver = webdriver.Firefox(options=options);
-            self.loadUrl(self.amazonMusicUrl + self.signInPath);
         except:
             sys.stderr.write("Firefox not initialized!\n");
             exit(1);
 
     def login(self, userName, password):
         try:
+            self.loadUrl(self.amazonMusicUrl + self.signInPath);
             captcha = '';
             while True:
                 EMAIL_ID = 'ap_email';
