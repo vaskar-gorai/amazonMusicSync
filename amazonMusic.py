@@ -14,7 +14,7 @@ try:
     from selenium.webdriver.support.ui import WebDriverWait
     from selenium.webdriver.support import expected_conditions as EC
 except ImportError:
-    print("selenium not found!")
+    sys.stderr.write("selenium not found!\n")
     exit(1);
 
 class new_element_is_found:
@@ -38,7 +38,7 @@ class AmazonMusic:
     def __init__(self):
         try:
             options = Options();
-            options.add_argument('--headless');
+            # options.add_argument('--headless');
             self.driver = webdriver.Firefox(options=options);
         except:
             sys.stderr.write("Firefox not initialized!\n");
@@ -67,7 +67,7 @@ class AmazonMusic:
                 break;
             self.handle2FA();
         except Exception as e:
-            print(e);
+            sys.stderr.write(e+'\n');
             self.cleanupDriverAndExit();
         return 0;
 
@@ -164,7 +164,7 @@ class AmazonMusic:
         except subprocess.CalledProcessError as e:
             sys.stderr.write(e.cmd, 'failed');
         except Exception as e:
-            print(e);
+            sys.stderr.write(e+'\n');
         self.cleanupDriverAndExit();
 
     def getSongAttributes(self, songDiv):
