@@ -62,7 +62,7 @@ def deleteSongsFromYoutubePlaylist(youtube, playlistId, songs):
     deleted = [];
     for songId in songs:
         try:
-            playlistItemId = youtube.getPlaylistItemId(mapping[songId], playlistId);
+            playlistItemId = youtube.getPlaylistItemId(songs[songId], playlistId);
             youtube.deleteVideoInPlaylist(playlistItemId);
             deleted.append(songId);
         except YouTubeError as e:
@@ -120,14 +120,18 @@ def main():
     mapping = getMappingsFromFile(jsonFile);
     addition, deletion = getAdditionAndDeletion(amazonSongsSet, mapping)
 
-    mapped, errorCode = addSongsToYoutubePlaylist(youtube, playlistId, addition);
-    mapping.update(mapped);
+    added, errorCode = addSongsToYoutubePlaylist(youtube, playlistId, addition);
+    if len(added) > 0:
+        print(f'Added {len(mapped)} songs')
+    mapping.update(added);
     if errorCode != 0:
         writeMappingsToFile(jsonFile, mapping);
         amazon.closeDriver();
         exit(errorCode);
 
     deleted, errorCode = deleteSongsFromYoutubePlaylist(youtube, playlistId, deletion);
+    if len(deleted) > 0:
+        print(f'Deleted {len(mapped)} songs')
     for songId in deleted:
         mapping.pop(songId)
     writeMappingsToFile(jsonFile, mapping);
