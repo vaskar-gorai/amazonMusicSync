@@ -117,7 +117,7 @@ class YouTube:
                 description = description
             ),
             status = dict(
-                privacyStatus = 'private'
+                privacyStatus = 'unlisted'
             )
         );
         request = self.client.playlists().insert(
