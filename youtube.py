@@ -16,7 +16,7 @@ class YouTubeError(Exception):
         self.message = message
 
     def __str__(self):
-        return str(self.errorDetail) + str(self.message);
+        return str(self.errorDetail) + ':' + str(self.message);
 
 class YouTube:
     SCOPES = ['https://www.googleapis.com/auth/youtube']
