@@ -6,11 +6,11 @@ import keyring;
 import argparse;
 import sys;
 
-def getSongsFromAmazon(email, password):
-    amazonMusic = AmazonMusic();
-    amazonMusic.login(email, password);
-    songsSet = amazonMusic.getAllSavedSongs();
-    amazonMusic.closeDriver();
+def getSongsFromAmazon(client, playlist):
+    if playlist:
+        songsSet = client.getSongsFromPlaylist(playlist);
+    else:
+        songsSet = client.getAllSavedSongs();
     return songsSet;
 
 def getAdditionAndDeletion(songs, mapping):
@@ -41,59 +41,90 @@ def writeMappingsToFile(fileName, mapping):
         with open(fileName, 'w') as f:
             f.write(json.dumps(mapping));
             f.flush();
-            f.close();
     except IOError:
-        print('write failed');
+        sys.stderr.write('write failed\n');
+
+def addSongsToYoutubePlaylist(youtube, playlistId, songs):
+    mapping = {}
+    for song in songs:
+        try:
+            videoId = youtube.searchForVideo(song.name + ' by ' + song.artist)[0];
+            youtube.insertVideoInPlaylist(videoId, playlistId);
+            mapping[song.id] = videoId;
+        except YouTubeError as e:
+            if e.errorDetail == 'quotaExceeded':
+                return (mapping, 1);
+        except:
+            sys.stderr.write(e+'\n');
+            return (mapping, 1);
+    return (mapping, 0);
+
+def deleteSongsFromYoutubePlaylist(youtube, playlistId, songs):
+    deleted = [];
+    for songId in deletion:
+        try:
+            playlistItemId = youtube.getPlaylistItemId(mapping[songId], playlistId);
+            youtube.deleteVideoInPlaylist(playlistItemId);
+            deleted.append(songId);
+        except YouTubeError as e:
+            if e.errorDetail == 'quotaExceeded':
+                return (deleted, 1)
+        except Exception as e:
+            sys.stderr.write(e+'\n');
+            return (deleted, 1)
+
+    return (deleted, 0)
 
 def main():
     parser = argparse.ArgumentParser(description = 'Process arguments');
     parser.add_argument('--email', help='Amazon email', default='vasgorai09@gmail.com');
     parser.add_argument('--token', help='Token for authenticating with google');
     parser.add_argument('--auth', help='Auth File for authentication');
-    parser.add_argument('--playlist', help='youtube playlist to be updated', default='amazon music test');
-    parser.add_argument('--json', help='json file with mapping from amazon song to youtube video');
+    parser.add_argument('--playlist', help='amazon music playlist to be synced');
     args = parser.parse_args(sys.argv[1:]);
-    if not args.json:
-        args.json = args.playlist.replace(' ', '_') + '.json';
+
+    amazon = AmazonMusic();
     password = keyring.get_password('AMAZON_MUSIC_APP', args.email)
+    amazon.login(args.email, password);
+    if not args.playlist:
+        youtubePlaylist = 'amazon music'
+        jsonFile = '.songs.json'
+    else:
+        youtubePlaylist = args.playlist + '_amazon'
+        playlistPath = amazon.searchForPlaylist(args.playlist).split('/')[-1];
+        jsonFile = '.' + amazon.searchForPlaylist(args.playlist).replace(' ', '_') + '.json'
 
     try:
         if args.token:
             youtube = YouTube.fromToken(args.token);
         elif args.auth:
             youtube = YouTube.fromAuthFile(args.auth);
-        playlistId = youtube.getPlaylist(args.playlist);
+        playlistId = youtube.getPlaylist(youtubePlaylist);
         if playlistId == None:
-            playlistId = youtube.insertPlaylist(args.playlist);
+            message = 'This playlist is maintained by a automated program. Please don\'t change the contents manually';
+            playlistId = youtube.insertPlaylist(youtubePlaylist, message);
     except YouTubeError as e:
+        amazon.closeDriver();
+        sys.stderr.write(e+'\n');
         exit(1);
 
-    amazonSongsSet = getSongsFromAmazon(args.email, password);
-    mapping = getMappingsFromFile(args.json);
+    amazonSongsSet = getSongsFromAmazon(amazon, args.playlist)
+    mapping = getMappingsFromFile(jsonFile);
     addition, deletion = getAdditionAndDeletion(amazonSongsSet, mapping)
 
-    for song in addition:
-        try:
-            videoId = youtube.searchForVideo(song.name + ' by ' + song.artist)[0];
-            youtube.insertVideoInPlaylist(videoId, playlistId);
-            mapping[song.id] = videoId;
-        except YouTubeError as e:
-            break;
-        except:
-            print(e);
-            writeMappingsToFile(args.json, mapping);
-            exit(1);
+    mapped, errorCode = addSongsToYoutubePlaylist(youtube, playlistId, addition);
+    mapping.update(mapped);
+    if errorCode != 0:
+        writeMappingsToFile(jsonFile, mapping);
+        amazon.closeDriver();
+        exit(errorCode);
 
-    for songId in deletion:
-        try:
-            playlistItemId = youtube.getPlaylistItemId(mapping[songId], playlistId);
-            youtube.deleteVideoInPlaylist(playlistItemId);
-            mapping.pop(songId)
-        except YouTubeError as e:
-        except Exception as e:
-            print(e);
-            writeMappingsToFile(args.json, mapping);
-            exit(1);
+    deleted, errorCode = deleteSongsFromYoutubePlaylist(youtube, playlistId, deletion);
+    if errorCode != 0:
+        writeMappingsToFile(jsonFile, mapping);
+        amazon.closeDriver();
+        exit(errorCode);
+
 
 if __name__ == "__main__":
     main();
