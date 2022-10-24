@@ -137,7 +137,7 @@ class AmazonMusic:
         for playlist in playlists:
             curName = self.getAttribute(playlist, HTML_ATTRIBUTE_FOR_NAME);
             curName = curName if curName else '';
-            if playlistName.lower() in curName.lower():
+            if playlistName == curName:
                 playlistPath = self.getAttribute(playlist, HTML_ATTRIBUTE_FOR_REF);
                 return playlistPath;
         return '';
