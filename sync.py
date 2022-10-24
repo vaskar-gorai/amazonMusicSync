@@ -117,12 +117,13 @@ def main():
         exit(1);
 
     amazonSongsSet = getSongsFromAmazon(amazon, args.playlist)
+    print(f'found {len(amazonSongsSet)} songs')
     mapping = getMappingsFromFile(jsonFile);
     addition, deletion = getAdditionAndDeletion(amazonSongsSet, mapping)
 
     added, errorCode = addSongsToYoutubePlaylist(youtube, playlistId, addition);
     if len(added) > 0:
-        print(f'Added {len(mapped)} songs')
+        sys.stdout.write(f'Added {len(added)} songs\n')
     mapping.update(added);
     if errorCode != 0:
         writeMappingsToFile(jsonFile, mapping);
@@ -131,7 +132,7 @@ def main():
 
     deleted, errorCode = deleteSongsFromYoutubePlaylist(youtube, playlistId, deletion);
     if len(deleted) > 0:
-        print(f'Deleted {len(mapped)} songs')
+        sys.stdout.write(f'Deleted {len(deleted)} songs\n')
     for songId in deleted:
         mapping.pop(songId)
     writeMappingsToFile(jsonFile, mapping);
