@@ -158,13 +158,13 @@ class AmazonMusic:
             process = subprocess.run['rm', fileName];
             return captcha;
         except urllib.error.HTTPError as e:
-            sys.stderr.write(f'HTTPError({e.code})', e.reason);
+            sys.stderr.write(f'HTTPError({e.code})' + str(e.reason) + '\n');
         except PIL.UnidentifiedImageError as e:
-            sys.stderr.write('Failed to read image:', e);
+            sys.stderr.write('Failed to read image:' + str(e) + '\n');
         except subprocess.CalledProcessError as e:
-            sys.stderr.write(e.cmd, 'failed');
+            sys.stderr.write(str(e.cmd) + ' failed\n');
         except Exception as e:
-            sys.stderr.write(e+'\n');
+            sys.stderr.write(str(e)+'\n');
         self.cleanupDriverAndExit();
 
     def getSongAttributes(self, songDiv):
@@ -230,7 +230,7 @@ class AmazonMusic:
                 EC.element_to_be_clickable((By.ID, buttonId))
             ).click();
         except NoSuchElementException:
-            sys.stderr.write(f"no element found with {elementId}\n");
+            sys.stderr.write(f"no element found with {buttonId}\n");
             self.cleanupDriverAndExit();
         except WebDriverException:
             self.cleanupDriverAndExit();

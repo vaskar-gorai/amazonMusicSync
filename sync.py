@@ -25,7 +25,6 @@ def getAdditionAndDeletion(songs, mapping):
 
     return addition, deletion;
 
-
 def getMappingsFromFile(fileName):
     mapping = {};
     try:
@@ -54,8 +53,8 @@ def addSongsToYoutubePlaylist(youtube, playlistId, songs):
         except YouTubeError as e:
             if e.errorDetail == 'quotaExceeded':
                 return (mapping, 1);
-        except:
-            sys.stderr.write(e+'\n');
+        except Exception as e:
+            sys.stderr.write(str(e)+'\n');
             return (mapping, 1);
     return (mapping, 0);
 
@@ -70,42 +69,51 @@ def deleteSongsFromYoutubePlaylist(youtube, playlistId, songs):
             if e.errorDetail == 'quotaExceeded':
                 return (deleted, 1)
         except Exception as e:
-            sys.stderr.write(e+'\n');
+            sys.stderr.write(str(e)+'\n');
             return (deleted, 1)
 
     return (deleted, 0)
 
 def main():
+    APP_NAME = 'AMAZON_MUSIC_APP'
     parser = argparse.ArgumentParser(description = 'Process arguments');
     parser.add_argument('--email', help='Amazon email', default='vasgorai09@gmail.com');
     parser.add_argument('--token', help='Token for authenticating with google');
     parser.add_argument('--auth', help='Auth File for authentication');
-    parser.add_argument('--playlist', help='amazon music playlist to be synced');
+    parser.add_argument('--playlist', help='amazon music playlist to be synced', default = '');
     args = parser.parse_args(sys.argv[1:]);
 
     amazon = AmazonMusic();
-    password = keyring.get_password('AMAZON_MUSIC_APP', args.email)
+    password = keyring.get_password(APP_NAME, args.email)
+    playlistId = keyring.get_password(APP_NAME, args.playlist)
     amazon.login(args.email, password);
     if not args.playlist:
         youtubePlaylist = 'amazon music'
         jsonFile = '.songs.json'
     else:
         youtubePlaylist = args.playlist + '_amazon'
-        playlistPath = amazon.searchForPlaylist(args.playlist).split('/')[-1];
-        jsonFile = '.' + amazon.searchForPlaylist(args.playlist).replace(' ', '_') + '.json'
+        jsonFile = '.' + args.playlist + '.json'
+
+    try:
+        assert (not args.playlist or amazon.searchForPlaylist(args.playlist)), "Playlist not found"
+        assert (args.token or args.auth), 'Must provide auth or token'
+    except Exception as e:
+        amazon.closeDriver();
+        sys.stderr.write(str(e)+'\n');
+        exit(1);
 
     try:
         if args.token:
             youtube = YouTube.fromToken(args.token);
-        elif args.auth:
+        else:
             youtube = YouTube.fromAuthFile(args.auth);
-        playlistId = youtube.getPlaylist(youtubePlaylist);
         if playlistId == None:
             message = 'This playlist is maintained by a automated program. Please don\'t change the contents manually';
             playlistId = youtube.insertPlaylist(youtubePlaylist, message);
-    except YouTubeError as e:
+            keyring.set_password(APP_NAME, args.playlist, playlistId)
+    except Exception as e:
         amazon.closeDriver();
-        sys.stderr.write(e+'\n');
+        sys.stderr.write(str(e)+'\n');
         exit(1);
 
     amazonSongsSet = getSongsFromAmazon(amazon, args.playlist)

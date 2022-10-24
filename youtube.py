@@ -35,7 +35,7 @@ class YouTube:
         except oauthlib.oauth2.rfc6749.errors.InvalidClientError:
             raise YouTubeError(YouTubeError.INVALID_SECRET_CODE, 'Invalid secert client code');
         except Exception as e:
-            sys.stderr.write(e+'\n')
+            sys.stderr.write(str(e)+'\n')
             sys.stderr.write('Failed to create youtube client from authFile\n')
 
     @classmethod
@@ -52,7 +52,7 @@ class YouTube:
         except oauthlib.oauth2.rfc6749.errors.InvalidClientError:
             raise YouTubeError(YouTubeError.INVALID_SECRET_CODE, 'Invalid secert client code');
         except Exception as e:
-            sys.stderr.write(e+'\n')
+            sys.stderr.write(str(e)+'\n')
             sys.stderr.write('Failed to create youtube client from token\n')
 
     @classmethod
@@ -79,7 +79,7 @@ class YouTube:
         except requests.exceptions.HTTPError:
             sys.stderr.write('Bad response received\n');
         except KeyError:
-            sys.stderr.write('Key ' + sys.exc_info()[1][0] + ' not Found\n');
+            sys.stderr.write('Key ' + str(sys.exc_info()[1][0]) + ' not Found\n');
         return credentials;
 
     def __init__(self, client):
