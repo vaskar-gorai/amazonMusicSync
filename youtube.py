@@ -35,7 +35,7 @@ class YouTube:
         except oauthlib.oauth2.rfc6749.errors.InvalidClientError:
             raise YouTubeError(YouTubeError.INVALID_SECRET_CODE, 'Invalid secert client code');
         except Exception as e:
-            print(e)
+            sys.stderr.write(e+'\n')
             sys.stderr.write('Failed to create youtube client from authFile\n')
 
     @classmethod
@@ -52,7 +52,7 @@ class YouTube:
         except oauthlib.oauth2.rfc6749.errors.InvalidClientError:
             raise YouTubeError(YouTubeError.INVALID_SECRET_CODE, 'Invalid secert client code');
         except Exception as e:
-            print(e)
+            sys.stderr.write(e+'\n')
             sys.stderr.write('Failed to create youtube client from token\n')
 
     @classmethod
