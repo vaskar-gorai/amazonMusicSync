@@ -28,7 +28,7 @@ class YouTube:
         try:
             flow = google_auth_oauthlib.flow.InstalledAppFlow.from_client_secrets_file(authFile, cls.SCOPES);
             credentials = flow.run_console();
-            return build(cls.API_SERVICE_NAME, cls.API_VERSION, credentials = credentials)
+            return YouTube(build(cls.API_SERVICE_NAME, cls.API_VERSION, credentials = credentials))
         except FileNotFoundError:
             raise YouTubeError(YouTubeError.FILE_NOT_FOUND, f'File {authFile} not found');
         except oauthlib.oauth2.rfc6749.errors.InvalidClientError:
@@ -44,7 +44,7 @@ class YouTube:
                 credentials = YouTube.refreshCredentials(credentials);
             if not credentials.valid or credentials.expired:
                 raise YouTubeError(YouTubeError.INVALID_TOKEN, 'Token invalid! Please generate new token via authFile');
-            return build(cls.API_SERVICE_NAME, cls.API_VERSION, credentials = credentials)
+            return YouTube(build(cls.API_SERVICE_NAME, cls.API_VERSION, credentials = credentials))
         except FileNotFoundError:
             raise YouTubeError(YouTubeError.FILE_NOT_FOUND, f'File {token} not found');
         except oauthlib.oauth2.rfc6749.errors.InvalidClientError:
@@ -79,6 +79,9 @@ class YouTube:
             sys.stderr.write('Key ' + sys.exc_info()[1][0] + ' not Found\n');
         return credentials;
 
+    def __init__(self, client):
+        self.client = client;
+
     def getResponse(self, request):
         try:
             response = request.execute();
@@ -90,7 +93,7 @@ class YouTube:
         return response
 
     def getPlaylist(self, playlistTitle):
-        request = self.playlists().list(
+        request = self.client.playlists().list(
             part="snippet",
             maxResults=15,
             mine=True
@@ -114,14 +117,14 @@ class YouTube:
                 privacyStatus = 'private'
             )
         );
-        request = self.playlists().insert(
+        request = self.client.playlists().insert(
             part = 'snippet,status',
             body = requestBody
         );
         self.getResponse(request);
 
     def searchForVideo(self, title):
-        request = self.search().list(
+        request = self.client.search().list(
             part = 'id',
             q = title,
             maxResults = 25,
@@ -141,7 +144,7 @@ class YouTube:
             maxResults = 50,
         )
         while True:
-            request = self.playlistItems().list(**requestBody);
+            request = self.client.playlistItems().list(**requestBody);
             response = self.getResponse(request)
             playlistItems.extend((map(lambda a: a['contentDetails']['videoId'], response['items'])))
 
@@ -151,7 +154,7 @@ class YouTube:
                 return playlistItems
 
     def getPlaylistItemId(self, videoId, playlistId):
-        request = self.playlistItems().list(
+        request = self.client.playlistItems().list(
             part = 'id',
             playlistId = playlistId,
             videoId = videoId
@@ -170,14 +173,14 @@ class YouTube:
                 )
             )
         );
-        request = self.playlistItems().insert(
+        request = self.client.playlistItems().insert(
             part = 'snippet',
             body = requestBody
         );
         self.getResponse(request);
 
     def deleteVideoInPlaylist(self, playlistItemId):
-        request = self.playlistItems().delete(
+        request = self.client.playlistItems().delete(
             id = playlistItemId
         );
 
