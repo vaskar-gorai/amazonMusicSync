@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-import os, json
+import os, json, sys
 import requests;
 import oauthlib.oauth2
 import google.oauth2.credentials
 import google_auth_oauthlib.flow
+import googleapiclient.errors
 from googleapiclient.discovery import build
 
 class YouTubeError(Exception):
@@ -34,6 +35,7 @@ class YouTube:
         except oauthlib.oauth2.rfc6749.errors.InvalidClientError:
             raise YouTubeError(YouTubeError.INVALID_SECRET_CODE, 'Invalid secert client code');
         except Exception as e:
+            print(e)
             sys.stderr.write('Failed to create youtube client from authFile\n')
 
     @classmethod
@@ -50,7 +52,8 @@ class YouTube:
         except oauthlib.oauth2.rfc6749.errors.InvalidClientError:
             raise YouTubeError(YouTubeError.INVALID_SECRET_CODE, 'Invalid secert client code');
         except Exception as e:
-            sys.stderr.write('Failed to create youtube client from authFile\n')
+            print(e)
+            sys.stderr.write('Failed to create youtube client from token\n')
 
     @classmethod
     def refreshCredentials(cls, credentials):
@@ -85,9 +88,9 @@ class YouTube:
     def getResponse(self, request):
         try:
             response = request.execute();
-        except googleapiclient.errors.HTTPError as e:
+        except googleapiclient.errors.HttpError as e:
             error = json.loads(e.content.decode('UTF-8'));
-            raise YouTubeError(error['errors']['reason'], error['message']);
+            raise YouTubeError(error['error']['errors'][0]['reason'], error['error']['message']);
         except Exception as e:
             raise YouTubeError(YouTubeError.UNKNOWN_ERROR, str(e))
         return response
