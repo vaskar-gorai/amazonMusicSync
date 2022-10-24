@@ -124,7 +124,7 @@ class YouTube:
             part = 'snippet,status',
             body = requestBody
         );
-        self.getResponse(request);
+        return self.getResponse(request)['id'];
 
     def searchForVideo(self, title):
         request = self.client.search().list(
@@ -135,7 +135,7 @@ class YouTube:
             type = 'video'
         );
 
-        response = self.getResponse(requeset);
+        response = self.getResponse(request);
         return list(map(lambda a: a['id']['videoId'], response['items']));
 
 

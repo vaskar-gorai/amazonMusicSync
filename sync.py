@@ -60,7 +60,7 @@ def addSongsToYoutubePlaylist(youtube, playlistId, songs):
 
 def deleteSongsFromYoutubePlaylist(youtube, playlistId, songs):
     deleted = [];
-    for songId in deletion:
+    for songId in songs:
         try:
             playlistItemId = youtube.getPlaylistItemId(mapping[songId], playlistId);
             youtube.deleteVideoInPlaylist(playlistItemId);
@@ -110,7 +110,7 @@ def main():
         if playlistId == None:
             message = 'This playlist is maintained by a automated program. Please don\'t change the contents manually';
             playlistId = youtube.insertPlaylist(youtubePlaylist, message);
-            keyring.set_password(APP_NAME, args.playlist, playlistId)
+            keyring.set_password(APP_NAME, str(args.playlist), str(playlistId))
     except Exception as e:
         amazon.closeDriver();
         sys.stderr.write(str(e)+'\n');
@@ -128,10 +128,11 @@ def main():
         exit(errorCode);
 
     deleted, errorCode = deleteSongsFromYoutubePlaylist(youtube, playlistId, deletion);
-    if errorCode != 0:
-        writeMappingsToFile(jsonFile, mapping);
-        amazon.closeDriver();
-        exit(errorCode);
+    for songId in deleted:
+        mapping.pop(songId)
+    writeMappingsToFile(jsonFile, mapping);
+    amazon.closeDriver();
+    exit(errorCode);
 
 
 if __name__ == "__main__":
