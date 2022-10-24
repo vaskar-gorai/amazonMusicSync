@@ -7,35 +7,34 @@ import google_auth_oauthlib.flow
 from googleapiclient.discovery import build
 
 class YouTubeError(Exception):
-    INVALID_SECRET_CODE = 1;
-    FILE_NOT_FOUND = 2;
-    INVALID_TOKEN = 3;
-
-    def __init__(self, message = '', errorCode = 1):
-        self.message = message;
-        self.errorCode = errorCode;
+    FILE_NOT_FOUND = 'fileNotFound'
+    INVALID_SECRET_CODE = 'invalidSecretCode'
+    INVALID_TOKEN = 'invalidToken'
+    UNKNOWN_ERROR = 'unknownError'
+    def __init__(self, errorDetail, message):
+        self.errorDetail = errorDetail
+        self.message = message
 
     def __str__(self):
-        return self.message;
+        return str(self.errorDetail) + str(self.message);
 
 class YouTube:
     SCOPES = ['https://www.googleapis.com/auth/youtube']
     API_SERVICE_NAME = 'youtube';
-    API_VERSION = 'v3';
-    client = None;
+    API_VERSION = 'v3'
 
     @classmethod
     def fromAuthFile(cls, authFile):
         try:
             flow = google_auth_oauthlib.flow.InstalledAppFlow.from_client_secrets_file(authFile, cls.SCOPES);
             credentials = flow.run_console();
-            YouTube.client = build(cls.API_SERVICE_NAME, cls.API_VERSION, credentials = credentials)
-            return YouTube();
+            return build(cls.API_SERVICE_NAME, cls.API_VERSION, credentials = credentials)
         except FileNotFoundError:
-            raise YouTubeError(f'file {authFile} not found', YouTubeError.FILE_NOT_FOUND);
+            raise YouTubeError(YouTubeError.FILE_NOT_FOUND, f'File {authFile} not found');
         except oauthlib.oauth2.rfc6749.errors.InvalidClientError:
-            raise YouTubeError('Invalid secert client code', YouTubeError.INVALID_SECRET_CODE);
-        return YouTube();
+            raise YouTubeError(YouTubeError.INVALID_SECRET_CODE, 'Invalid secert client code');
+        except Exception as e:
+            sys.stderr.write('Failed to create youtube client from authFile\n')
 
     @classmethod
     def fromToken(cls, token):
@@ -44,25 +43,25 @@ class YouTube:
             if not credentials.valid or credentials.expired:
                 credentials = YouTube.refreshCredentials(credentials);
             if not credentials.valid or credentials.expired:
-                raise YouTubeError('Token invalid! Please generate new token via authFile', YouTubeError.INVALID_TOKEN);
-            YouTube.client = build(cls.API_SERVICE_NAME, cls.API_VERSION, credentials = credentials)
+                raise YouTubeError(YouTubeError.INVALID_TOKEN, 'Token invalid! Please generate new token via authFile');
+            return build(cls.API_SERVICE_NAME, cls.API_VERSION, credentials = credentials)
         except FileNotFoundError:
-            raise YouTubeError(f'file {token} not found', YouTubeError.FILE_NOT_FOUND);
+            raise YouTubeError(YouTubeError.FILE_NOT_FOUND, f'File {token} not found');
         except oauthlib.oauth2.rfc6749.errors.InvalidClientError:
-            raise YouTubeError('Invalid secert client code', YouTubeError.INVALID_SECRET_CODE);
-        return YouTube();
+            raise YouTubeError(YouTubeError.INVALID_SECRET_CODE, 'Invalid secert client code');
+        except Exception as e:
+            sys.stderr.write('Failed to create youtube client from authFile\n')
 
     @classmethod
     def refreshCredentials(cls, credentials):
-        authUrl = credentials.token_uri;
-        body = dict(
-            client_id = credentials.client_id,
-            client_secret = credentials.client_secret,
-            refresh_token = credentials.refresh_token,
-            grant_type = 'refresh_token'
-        );
-
         try:
+            authUrl = credentials.token_uri;
+            body = dict(
+                client_id = credentials.client_id,
+                client_secret = credentials.client_secret,
+                refresh_token = credentials.refresh_token,
+                grant_type = 'refresh_token'
+            );
             response = requests.post(authUrl, data = body, timeout = 10);
             response.raise_for_status();
             inJson = response.json();
@@ -76,18 +75,22 @@ class YouTube:
             sys.stderr.write('Request timed out\n');
         except requests.exceptions.HTTPError:
             sys.stderr.write('Bad response received\n');
+        except KeyError:
+            sys.stderr.write('Key ' + sys.exc_info()[1][0] + ' not Found\n');
         return credentials;
 
     def getResponse(self, request):
         try:
             response = request.execute();
-        except Exception as e:
+        except googleapiclient.errors.HTTPError as e:
             error = json.loads(e.content.decode('UTF-8'));
-            raise YouTubeError(error['error']['message']);
+            raise YouTubeError(error['errors']['reason'], error['message']);
+        except Exception as e:
+            raise YouTubeError(YouTubeError.UNKNOWN_ERROR, str(e))
         return response
 
     def getPlaylist(self, playlistTitle):
-        request = YouTube.client.playlists().list(
+        request = self.playlists().list(
             part="snippet",
             maxResults=15,
             mine=True
@@ -111,14 +114,14 @@ class YouTube:
                 privacyStatus = 'private'
             )
         );
-        request = YouTube.client.playlists().insert(
+        request = self.playlists().insert(
             part = 'snippet,status',
             body = requestBody
         );
         self.getResponse(request);
 
     def searchForVideo(self, title):
-        request = YouTube.client.search().list(
+        request = self.search().list(
             part = 'id',
             q = title,
             maxResults = 25,
@@ -138,7 +141,7 @@ class YouTube:
             maxResults = 50,
         )
         while True:
-            request = YouTube.client.playlistItems().list(**requestBody);
+            request = self.playlistItems().list(**requestBody);
             response = self.getResponse(request)
             playlistItems.extend((map(lambda a: a['contentDetails']['videoId'], response['items'])))
 
@@ -148,7 +151,7 @@ class YouTube:
                 return playlistItems
 
     def getPlaylistItemId(self, videoId, playlistId):
-        request = YouTube.client.playlistItems().list(
+        request = self.playlistItems().list(
             part = 'id',
             playlistId = playlistId,
             videoId = videoId
@@ -167,14 +170,14 @@ class YouTube:
                 )
             )
         );
-        request = YouTube.client.playlistItems().insert(
+        request = self.playlistItems().insert(
             part = 'snippet',
             body = requestBody
         );
         self.getResponse(request);
 
     def deleteVideoInPlaylist(self, playlistItemId):
-        request = YouTube.client.playlistItems().delete(
+        request = self.playlistItems().delete(
             id = playlistItemId
         );
 
