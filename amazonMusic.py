@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import sys, getpass, time;
 from collections import namedtuple
 import subprocess, os;

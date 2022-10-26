@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import os, json, sys
 import requests;
 import oauthlib.oauth2

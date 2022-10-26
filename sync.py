@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 
 from amazonMusic import *
+from database import *
+import passwords
 from youtube import *
-import keyring;
 import argparse;
 import sys;
 
@@ -25,23 +26,17 @@ def getAdditionAndDeletion(songs, mapping):
 
     return addition, deletion;
 
-def getMappingsFromFile(fileName):
-    mapping = {};
-    try:
-        with open(fileName, 'r') as f:
-            mapping = json.load(f);
-    except IOError:
-        pass
-    finally:
-        return mapping;
+def getMappingsFromDB(dbName, tableName):
+    con = createConnection(dbName);
+    mapping = dict(searchRows('*', 'amazonSongId LIKE "%%"', tableName, con))
+    closeConnection(con)
+    return mapping
 
-def writeMappingsToFile(fileName, mapping):
-    try:
-        with open(fileName, 'w') as f:
-            f.write(json.dumps(mapping));
-            f.flush();
-    except IOError:
-        sys.stderr.write('write failed\n');
+def writeMappingToDB(mapping, dbName, tableName):
+    con = createConnection(dbName)
+    for item in mapping:
+        insertRowInTable((item, mapping[item]), tableName, con)
+    closeConnection(con)
 
 def addSongsToYoutubePlaylist(youtube, playlistId, songs):
     mapping = {}
@@ -75,24 +70,25 @@ def deleteSongsFromYoutubePlaylist(youtube, playlistId, songs):
     return (deleted, 0)
 
 def main():
-    APP_NAME = 'AMAZON_MUSIC_APP'
+    print('Starting sync')
+    os.chdir('/home/vaskar/Documents')
     parser = argparse.ArgumentParser(description = 'Process arguments');
     parser.add_argument('--email', help='Amazon email', default='vasgorai09@gmail.com');
-    parser.add_argument('--token', help='Token for authenticating with google');
+    parser.add_argument('--token', help='Token for authenticating with google', default='token.json');
     parser.add_argument('--auth', help='Auth File for authentication');
     parser.add_argument('--playlist', help='amazon music playlist to be synced', default = '');
+    parser.add_argument('--db', help='Database Name', default = 'songs.db');
     args = parser.parse_args(sys.argv[1:]);
 
     amazon = AmazonMusic();
-    password = keyring.get_password(APP_NAME, args.email)
-    playlistId = keyring.get_password(APP_NAME, args.playlist)
+    password = passwords.AMAZON_MUSIC_PASSWORD
     amazon.login(args.email, password);
     if not args.playlist:
         youtubePlaylist = 'amazon music'
-        jsonFile = '.songs.json'
+        tableName = 'saved_songs'
     else:
+        tableName = amazon.searchForPlaylist(args.playlist).split('/')[-1]
         youtubePlaylist = args.playlist + '_amazon'
-        jsonFile = '.' + args.playlist + '.json'
 
     try:
         assert (not args.playlist or amazon.searchForPlaylist(args.playlist)), "Playlist not found"
@@ -107,10 +103,10 @@ def main():
             youtube = YouTube.fromToken(args.token);
         else:
             youtube = YouTube.fromAuthFile(args.auth);
+        playlistId = youtube.getPlaylist(youtubePlaylist)
         if playlistId == None:
             message = 'This playlist is maintained by a automated program. Please don\'t change the contents manually';
             playlistId = youtube.insertPlaylist(youtubePlaylist, message);
-            keyring.set_password(APP_NAME, str(args.playlist), str(playlistId))
     except Exception as e:
         amazon.closeDriver();
         sys.stderr.write(str(e)+'\n');
@@ -118,7 +114,7 @@ def main():
 
     amazonSongsSet = getSongsFromAmazon(amazon, args.playlist)
     print(f'found {len(amazonSongsSet)} songs')
-    mapping = getMappingsFromFile(jsonFile);
+    mapping = getMappingsFromDB(args.db, tableName);
     addition, deletion = getAdditionAndDeletion(amazonSongsSet, mapping)
 
     added, errorCode = addSongsToYoutubePlaylist(youtube, playlistId, addition);
@@ -126,7 +122,7 @@ def main():
         sys.stdout.write(f'Added {len(added)} songs\n')
     mapping.update(added);
     if errorCode != 0:
-        writeMappingsToFile(jsonFile, mapping);
+        writeMappingToDB(mapping, args.db, tableName)
         amazon.closeDriver();
         exit(errorCode);
 
@@ -135,7 +131,7 @@ def main():
         sys.stdout.write(f'Deleted {len(deleted)} songs\n')
     for songId in deleted:
         mapping.pop(songId)
-    writeMappingsToFile(jsonFile, mapping);
+    writeMappingToDB(mapping, args.db, tableName)
     amazon.closeDriver();
     exit(errorCode);
 
